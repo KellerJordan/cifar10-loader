@@ -13,16 +13,16 @@ def make_random_square_masks(inputs, size):
     is_even = int(size % 2 == 0)
     n,c,h,w = inputs.shape
 
-    # seed centers of squares to cutout boxes from, in one dimension each
-    center_y = torch.randint(size//2-is_even, h-size//2, size=(n,), device=inputs.device)
-    center_x = torch.randint(size//2-is_even, w-size//2, size=(n,), device=inputs.device)
+    # seed top-left corners of squares to cutout boxes from, in one dimension each
+    corner_y = torch.randint(0, h-size+1, size=(n,), device=inputs.device)
+    corner_x = torch.randint(0, w-size+1, size=(n,), device=inputs.device)
 
     # measure distance, using the center as a reference point
-    to_mask_y_dists = torch.arange(h, device=inputs.device).view(1, 1, h, 1) - center_y.view(-1, 1, 1, 1)
-    to_mask_x_dists = torch.arange(w, device=inputs.device).view(1, 1, 1, w) - center_x.view(-1, 1, 1, 1)
+    corner_y_dists = torch.arange(h, device=inputs.device).view(1, 1, h, 1) - corner_y.view(-1, 1, 1, 1)
+    corner_x_dists = torch.arange(w, device=inputs.device).view(1, 1, 1, w) - corner_x.view(-1, 1, 1, 1)
     
-    mask_y = (to_mask_y_dists >= (-(size//2) + is_even)) * (to_mask_y_dists <= size//2)
-    mask_x = (to_mask_x_dists >= (-(size//2) + is_even)) * (to_mask_x_dists <= size//2)
+    mask_y = (corner_y_dists >= 0) * (corner_y_dists < size)
+    mask_x = (corner_x_dists >= 0) * (corner_x_dists < size)
 
     final_mask = mask_y * mask_x
 
