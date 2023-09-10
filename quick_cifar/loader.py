@@ -9,23 +9,22 @@ CIFAR_MEAN = (0.4914, 0.4822, 0.4465)
 CIFAR_STD = (0.2470, 0.2435, 0.2616)
 
 # https://github.com/tysam-code/hlb-CIFAR10/blob/main/main.py#L389
-def make_random_square_masks(inputs, mask_size):
-    assert mask_size > 0
-    is_even = int(mask_size % 2 == 0)
-    in_shape = inputs.shape
+def make_random_square_masks(inputs, size):
+    is_even = int(size % 2 == 0)
+    n,c,h,w = inputs.shape
 
     # seed centers of squares to cutout boxes from, in one dimension each
-    mask_center_y = torch.empty(in_shape[0], dtype=torch.long, device=inputs.device).random_(mask_size//2-is_even, in_shape[-2]-mask_size//2)
-    mask_center_x = torch.empty(in_shape[0], dtype=torch.long, device=inputs.device).random_(mask_size//2-is_even, in_shape[-1]-mask_size//2)
+    center_y = torch.randint(size//2-is_even, h-size//2, size=(n,), device=inputs.device)
+    center_x = torch.randint(size//2-is_even, w-size//2, size=(n,), device=inputs.device)
 
     # measure distance, using the center as a reference point
-    to_mask_y_dists = torch.arange(in_shape[-2], device=inputs.device).view(1, 1, in_shape[-2], 1) - mask_center_y.view(-1, 1, 1, 1)
-    to_mask_x_dists = torch.arange(in_shape[-1], device=inputs.device).view(1, 1, 1, in_shape[-1]) - mask_center_x.view(-1, 1, 1, 1)
+    to_mask_y_dists = torch.arange(h, device=inputs.device).view(1, 1, h, 1) - center_y.view(-1, 1, 1, 1)
+    to_mask_x_dists = torch.arange(w, device=inputs.device).view(1, 1, 1, w) - center_x.view(-1, 1, 1, 1)
+    
+    mask_y = (to_mask_y_dists >= (-(size//2) + is_even)) * (to_mask_y_dists <= size//2)
+    mask_x = (to_mask_x_dists >= (-(size//2) + is_even)) * (to_mask_x_dists <= size//2)
 
-    to_mask_y = (to_mask_y_dists >= (-(mask_size // 2) + is_even)) * (to_mask_y_dists <= mask_size // 2)
-    to_mask_x = (to_mask_x_dists >= (-(mask_size // 2) + is_even)) * (to_mask_x_dists <= mask_size // 2)
-
-    final_mask = to_mask_y * to_mask_x
+    final_mask = mask_y * mask_x
 
     return final_mask
 
