@@ -51,10 +51,10 @@ class CifarLoader:
 
     def __init__(self, path, train=True, batch_size=500, aug=None, keep_last=False):
         dset = torchvision.datasets.CIFAR10(path, download=True, train=train)
-        imgs = torch.tensor(dset.data).cuda()
-        imgs = (imgs.float() / 255).permute(0, 3, 1, 2)
-        self.mean = torch.tensor(CIFAR_MEAN).view(1, 3, 1, 1).cuda()
-        self.std = torch.tensor(CIFAR_STD).view(1, 3, 1, 1).cuda()
+        imgs = torch.tensor(dset.data, dtype=torch.half).cuda()
+        imgs = (imgs / 255).permute(0, 3, 1, 2)
+        self.mean = torch.tensor(CIFAR_MEAN, dtype=torch.half).view(1, 3, 1, 1).cuda()
+        self.std = torch.tensor(CIFAR_STD, dtype=torch.half).view(1, 3, 1, 1).cuda()
         self.images = (imgs - self.mean) / self.std
         self.targets = torch.tensor(dset.targets).cuda()
         
@@ -85,5 +85,5 @@ class CifarLoader:
         shuffled = torch.randperm(len(images), device=images.device)
         for i in range(len(self)):
             idxs = shuffled[i*self.batch_size:(i+1)*self.batch_size]
-            yield (images.index_select(0, idxs), targets.index_select(0, idxs))
+            yield (images.index_select(0, idxs).float(), targets.index_select(0, idxs))
 
