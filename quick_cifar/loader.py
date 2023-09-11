@@ -53,37 +53,39 @@ class CifarLoader:
         dset = torchvision.datasets.CIFAR10(path, download=True, train=train)
         imgs = torch.tensor(dset.data, dtype=torch.half).cuda()
         imgs = (imgs / 255).permute(0, 3, 1, 2)
+        imgs = imgs.to(memory_format=torch.channels_last)
         self.mean = torch.tensor(CIFAR_MEAN, dtype=torch.half).view(1, 3, 1, 1).cuda()
         self.std = torch.tensor(CIFAR_STD, dtype=torch.half).view(1, 3, 1, 1).cuda()
         self.images = (imgs - self.mean) / self.std
         self.targets = torch.tensor(dset.targets).cuda()
         
-        # set defaults
-        self.aug = {'flip': False, 'translate': 0, 'cutout': 0, **(aug or {})}
+        self.aug = aug or {}
         for k in self.aug.keys():
             assert k in ['flip', 'translate', 'cutout'], 'Unrecognized key: %s' % k
 
         self.batch_size = batch_size
         self.keep_last = keep_last
 
+    def augment(self, images):
+        if self.aug.get('flip', False):
+            images = batch_flip_lr(images)
+        if self.aug.get('cutout', 0) > 0:
+            images = batch_cutout(images, self.aug['cutout'])
+        if self.aug.get('translate', 0) > 0:
+            # apply translation in minibatches of 5000 in order to save memory
+            bs = 5000
+            nb = ceil(len(images)/bs)
+            images = torch.cat([batch_translate(images[i*bs:(i+1)*bs], self.aug['translate'])
+                                for i in range(nb)])
+        return images
+
     def __len__(self):
         return ceil(len(self.images)/self.batch_size) if self.keep_last else len(self.images)//self.batch_size
 
     def __iter__(self):
-        images = self.images
-        targets = self.targets
-
-        if self.aug['flip']:
-            images = batch_flip_lr(images)
-        if self.aug['cutout'] > 0:
-            images = batch_cutout(images, self.aug['cutout'])
-        if self.aug['translate'] > 0:
-            images = batch_translate(images, self.aug['translate'])
-
-        images = images.to(memory_format=torch.channels_last)
-        
+        images = self.augment(self.images)
         shuffled = torch.randperm(len(images), device=images.device)
         for i in range(len(self)):
             idxs = shuffled[i*self.batch_size:(i+1)*self.batch_size]
-            yield (images.index_select(0, idxs).float(), targets.index_select(0, idxs))
+            yield (images[idxs].float(), self.targets[idxs])
 
