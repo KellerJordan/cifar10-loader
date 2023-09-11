@@ -49,7 +49,7 @@ def batch_cutout(inputs, size):
 
 class CifarLoader:
 
-    def __init__(self, path, train=True, batch_size=500, aug=None, keep_last=False):
+    def __init__(self, path, train=True, batch_size=500, aug=None, keep_last=False, shuffle=True):
         dset = torchvision.datasets.CIFAR10(path, download=True, train=train)
         imgs = torch.tensor(dset.data, dtype=torch.half).cuda()
         imgs = (imgs / 255).permute(0, 3, 1, 2)
@@ -65,6 +65,7 @@ class CifarLoader:
 
         self.batch_size = batch_size
         self.keep_last = keep_last
+        self.shuffle = shuffle
 
     def augment(self, images):
         if self.aug.get('flip', False):
@@ -84,8 +85,8 @@ class CifarLoader:
 
     def __iter__(self):
         images = self.augment(self.images)
-        shuffled = torch.randperm(len(images), device=images.device)
+        indices = (torch.randperm if self.shuffle else torch.arange)(len(images), device=images.device)
         for i in range(len(self)):
-            idxs = shuffled[i*self.batch_size:(i+1)*self.batch_size]
+            idxs = indices[i*self.batch_size:(i+1)*self.batch_size]
             yield (images[idxs].float(), self.targets[idxs])
 
