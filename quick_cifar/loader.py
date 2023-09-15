@@ -49,15 +49,15 @@ def batch_cutout(inputs, size):
 
 class CifarLoader:
 
-    def __init__(self, path, train=True, batch_size=500, aug=None, keep_last=False, shuffle=True):
+    def __init__(self, path, train=True, batch_size=500, aug=None, keep_last=False, shuffle=True, gpu=0):
         dset = torchvision.datasets.CIFAR10(path, download=True, train=train)
-        imgs = torch.tensor(dset.data, dtype=torch.half).cuda()
+        imgs = torch.tensor(dset.data, dtype=torch.half).cuda(gpu)
         imgs = (imgs / 255).permute(0, 3, 1, 2)
         imgs = imgs.to(memory_format=torch.channels_last)
-        self.mean = torch.tensor(CIFAR_MEAN, dtype=torch.half).view(1, 3, 1, 1).cuda()
-        self.std = torch.tensor(CIFAR_STD, dtype=torch.half).view(1, 3, 1, 1).cuda()
+        self.mean = torch.tensor(CIFAR_MEAN, dtype=torch.half).view(1, 3, 1, 1).cuda(gpu)
+        self.std = torch.tensor(CIFAR_STD, dtype=torch.half).view(1, 3, 1, 1).cuda(gpu)
         self.images = (imgs - self.mean) / self.std
-        self.targets = torch.tensor(dset.targets).cuda()
+        self.targets = torch.tensor(dset.targets).cuda(gpu)
         
         self.aug = aug or {}
         for k in self.aug.keys():
