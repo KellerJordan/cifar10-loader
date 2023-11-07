@@ -51,6 +51,7 @@ class CifarLoader:
 
     def __init__(self, path, train=True, batch_size=500, aug=None, keep_last=False, shuffle=True, gpu=0):
         dset = torchvision.datasets.CIFAR10(path, download=True, train=train)
+        self.classes = dset.classes
         imgs = torch.tensor(dset.data, dtype=torch.half).cuda(gpu)
         imgs = (imgs / 255).permute(0, 3, 1, 2)
         imgs = imgs.to(memory_format=torch.channels_last)
