@@ -4,9 +4,10 @@ from math import ceil
 import torch
 import torch.nn.functional as F
 import torchvision
+import torchvision.transforms as T
 
-CIFAR_MEAN = (0.4914, 0.4822, 0.4465)
-CIFAR_STD = (0.2470, 0.2435, 0.2616)
+CIFAR_MEAN = torch.tensor((0.4914, 0.4822, 0.4465))
+CIFAR_STD = torch.tensor((0.2470, 0.2435, 0.2616))
 
 # https://github.com/tysam-code/hlb-CIFAR10/blob/main/main.py#L389
 def make_random_square_masks(inputs, size):
@@ -57,8 +58,11 @@ class CifarLoader:
         imgs = imgs.to(memory_format=torch.channels_last)
         self.mean = torch.tensor(CIFAR_MEAN, dtype=torch.half).view(1, 3, 1, 1).cuda(gpu)
         self.std = torch.tensor(CIFAR_STD, dtype=torch.half).view(1, 3, 1, 1).cuda(gpu)
-        self.images = (imgs - self.mean) / self.std
-        self.targets = torch.tensor(dset.targets).cuda(gpu)
+        self.normalize = T.Normalize(CIFAR_MEAN, CIFAR_STD)
+        self.denormalize = T.Normalize(-CIFAR_MEAN / CIFAR_STD, 1 / CIFAR_STD)
+        #self.images = (imgs - self.mean) / self.std
+        self.images = self.normalize(imgs)
+        self.labels = torch.tensor(dset.targets).cuda(gpu)
         
         self.aug = aug or {}
         for k in self.aug.keys():
@@ -89,5 +93,5 @@ class CifarLoader:
         indices = (torch.randperm if self.shuffle else torch.arange)(len(images), device=images.device)
         for i in range(len(self)):
             idxs = indices[i*self.batch_size:(i+1)*self.batch_size]
-            yield (images[idxs].float(), self.targets[idxs])
+            yield (images[idxs].float(), self.labels[idxs])
 
