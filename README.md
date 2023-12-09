@@ -17,6 +17,11 @@ Or, just copy-paste [loader.py](https://github.com/KellerJordan/cifar10-loader/b
 
 # Usage
 
+To run an example training (64 epochs in one A100-minute, 94.42% (+/- 0.25%) test-set accuracy):
+```
+python example_training/train.py
+```
+
 To use within your code or notebook:
 
 ```
@@ -27,10 +32,5 @@ epochs = 100
 for _ in range(epochs):
     for inputs, labels in loader:
         ...
-```
-
-To run an example training (64 epochs in one A100-minute, 94.42% (+/- 0.25%) test-set accuracy):
-```
-python example_training/train.py
 ```
 
