@@ -13,9 +13,11 @@ Clone then install via:
 ```
 pip install -e .
 ```
-Or, just copy-paste [loader.py](https://github.com/KellerJordan/cifar10-loader/blob/master/quick_cifar/loader.py) into your notebook.
+Or, just copy-paste [loader.py](https://github.com/KellerJordan/cifar10-loader/blob/master/quick_cifar/loader.py) into your code/notebook.
 
 # Usage
+
+To use within your code or notebook:
 
 ```
 from quick_cifar import CifarLoader
@@ -25,5 +27,10 @@ epochs = 100
 for _ in range(epochs):
     for inputs, labels in loader:
         ...
+```
+
+To run an example training (64 epochs in one A100-minute, 94.42% (+/- 0.25%) test-set accuracy):
+```
+python example_training/train.py
 ```
 
