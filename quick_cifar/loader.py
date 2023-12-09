@@ -56,8 +56,8 @@ class CifarLoader:
         imgs = torch.tensor(dset.data, dtype=torch.half).cuda(gpu)
         imgs = (imgs / 255).permute(0, 3, 1, 2)
         imgs = imgs.to(memory_format=torch.channels_last)
-        self.mean = torch.tensor(CIFAR_MEAN, dtype=torch.half).view(1, 3, 1, 1).cuda(gpu)
-        self.std = torch.tensor(CIFAR_STD, dtype=torch.half).view(1, 3, 1, 1).cuda(gpu)
+        self.mean = CIFAR_MEAN.half().view(1, 3, 1, 1).cuda(gpu)
+        self.std = CIFAR_STD.half().view(1, 3, 1, 1).cuda(gpu)
         self.normalize = T.Normalize(CIFAR_MEAN, CIFAR_STD)
         self.denormalize = T.Normalize(-CIFAR_MEAN / CIFAR_STD, 1 / CIFAR_STD)
         #self.images = (imgs - self.mean) / self.std
