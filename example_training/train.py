@@ -38,8 +38,8 @@ def evaluate(model, test_loader, save_outputs=False):
 def train(args, verbose=True):
 
     train_aug = None if args.no_aug else dict(flip=True, translate=2, cutout=12)
-    train_loader = CifarLoader('/tmp', True, args.batch_size, train_aug)
-    test_loader = CifarLoader('/tmp', False, args.batch_size)
+    train_loader = CifarLoader('/tmp/cifar10', True, args.batch_size, train_aug)
+    test_loader = CifarLoader('/tmp/cifar10', False, args.batch_size)
 
     n_iters = args.epochs*len(train_loader)
     lr_schedule = np.interp(np.arange(1+n_iters), [0, n_iters], [1, 0])
@@ -82,8 +82,8 @@ def train(args, verbose=True):
     log_path = os.path.join('./logs', str(uuid.uuid4())+'.pkl')
     with open(log_path, 'wb') as f:
         pickle.dump(log, f)
-    #log_path = os.path.join('./logs', str(uuid.uuid4())+'.pt')
-    #torch.save(log, log_path)
+    log_path = os.path.join('./logs', str(uuid.uuid4())+'.pt')
+    torch.save(log, log_path)
 
 def main(args):
     many_runs = (args.num_runs >= 10)

@@ -51,12 +51,17 @@ def batch_cutout(inputs, size):
 class CifarLoader:
 
     def __init__(self, path, train=True, batch_size=500, aug=None, keep_last=False, shuffle=None, gpu=0):
-        dset = torchvision.datasets.CIFAR10(path, download=True, train=train)
-        self.classes = dset.classes
-        self.images = torch.tensor(dset.data, dtype=torch.half).cuda(gpu)
-        self.images = (self.images / 255).permute(0, 3, 1, 2)
-        self.images = self.images.to(memory_format=torch.channels_last)
-        self.labels = torch.tensor(dset.targets).cuda(gpu)
+        data_path = os.path.join(path, 'train.pt' if train else 'test.pt')
+        if not os.path.exists(data_path):
+            dset = torchvision.datasets.CIFAR10(path, download=True, train=train)
+            images = torch.tensor(dset.data)
+            labels = torch.tensor(dset.targets)
+            torch.save({'images': images, 'labels': labels, 'classes': dset.classes}, data_path)
+
+        data = torch.load(data_path, map_location=torch.device(gpu))
+        self.images, self.labels, self.classes = data['images'], data['labels'], data['classes']
+        # It's faster to load+process uint8 data than to load preprocessed fp16 data
+        self.images = (self.images.half() / 255).permute(0, 3, 1, 2).to(memory_format=torch.channels_last)
 
         self.normalize = T.Normalize(CIFAR_MEAN, CIFAR_STD)
         self.denormalize = T.Normalize(-CIFAR_MEAN / CIFAR_STD, 1 / CIFAR_STD)
@@ -78,7 +83,7 @@ class CifarLoader:
         if self.aug.get('cutout', 0) > 0:
             images = batch_cutout(images, self.aug['cutout'])
         if self.aug.get('translate', 0) > 0:
-            # apply translation in minibatches of 5000 in order to save memory
+            # Apply translation in minibatches in order to save memory
             images = torch.cat([batch_translate(image_batch, self.aug['translate'])
                                 for image_batch in images.split(5000)])
         return images
