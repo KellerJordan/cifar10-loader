@@ -50,7 +50,7 @@ def batch_cutout(inputs, size):
 
 class CifarLoader:
 
-    def __init__(self, path, train=True, batch_size=500, aug=None, keep_last=False, shuffle=True, gpu=0):
+    def __init__(self, path, train=True, batch_size=500, aug=None, keep_last=False, shuffle=None, gpu=0):
         dset = torchvision.datasets.CIFAR10(path, download=True, train=train)
         self.classes = dset.classes
         imgs = torch.tensor(dset.data, dtype=torch.half).cuda(gpu)
@@ -70,7 +70,10 @@ class CifarLoader:
 
         self.batch_size = batch_size
         self.keep_last = keep_last
-        self.shuffle = shuffle
+        if shuffle is None:
+            self.shuffle = train
+        else:
+            self.shuffle = shuffle
 
     def augment(self, images):
         if self.aug.get('flip', False):
