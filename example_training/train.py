@@ -63,14 +63,15 @@ def train(args, verbose=True):
             with autocast():
                 outputs = model(inputs)
                 loss = loss_fn(outputs, labels)
+
+            log['losses'].append(loss.item())
         
             scaler.scale(loss).backward()
-            log['losses'].append(loss.item())
             scaler.step(optimizer)
             scaler.update()
             scheduler.step()
 
-    if args.save_outputs:
+    if not args.no_save_outputs:
         stats = evaluate(model, test_loader, save_outputs=True)
         log['correct'] = stats['correct']
         if verbose:
@@ -97,11 +98,11 @@ def main(args):
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--lr', type=float, default=0.5)
-parser.add_argument('--batch_size', type=int, default=500)
+parser.add_argument('--batch-size', type=int, default=500)
 parser.add_argument('--epochs', type=int, default=64)
-parser.add_argument('--save_outputs', type=int, default=1)
 parser.add_argument('--no-aug', action='store_true')
-parser.add_argument('--num_runs', type=int, default=1)
+parser.add_argument('--no-save-outputs', action='store_true')
+parser.add_argument('--num-runs', type=int, default=1)
 parser.add_argument('--gpu', type=int, default=0)
 if __name__ == '__main__':
     args = parser.parse_args()
