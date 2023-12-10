@@ -83,7 +83,7 @@ def main():
     train_loader = CifarLoader('/tmp/cifar10', train=True, batch_size=batch_size,
                                aug=train_aug)
     train_images = train_loader.normalize(train_loader.images)
-    test_loader = CifarLoader('/tmp/cifar10', train=False, batch_size=1000)
+    test_loader = CifarLoader('/tmp/cifar10', train=False, batch_size=2000)
     
     net_ema = None
     total_time_seconds = 0.
@@ -134,42 +134,32 @@ def main():
         loss_train = None
         accuracy_train = None
 
-        epoch_fraction = 1 if epoch + 1 < train_epochs else train_epochs % 1 # We need to know if we're running a partial epoch or not.
-
-        for epoch_step, (inputs, targets) in enumerate(train_loader):
+        for inputs, labels in train_loader:
             outputs = net(inputs)
 
             loss_batchsize_scaler = 512/batch_size
-            loss = loss_fn(outputs, targets).mul(hyp['opt']['loss_scale_scaler']*loss_batchsize_scaler).sum().div(hyp['opt']['loss_scale_scaler'])
-
-            # we only take the last-saved accs and losses from train
-            if epoch_step % 50 == 0:
-                train_acc = (outputs.detach().argmax(-1) == targets.argmax(-1)).float().mean().item()
-                train_loss = loss.detach().cpu().item()/(batch_size*loss_batchsize_scaler)
+            loss = loss_fn(outputs, labels).mul(hyp['opt']['loss_scale_scaler']*loss_batchsize_scaler).sum().div(hyp['opt']['loss_scale_scaler'])
 
             loss.backward()
 
-            ## Step for each optimizer, in turn.
             opt.step()
             opt_bias.step()
 
-            # We only want to step the lr_schedulers while we have training steps to consume. Otherwise we get a not-so-friendly error from PyTorch
             lr_sched.step()
             lr_sched_bias.step()
 
-            ## Using 'set_to_none' I believe is slightly faster (albeit riskier w/ funky gradient update workflows) than under the default 'set to zero' method
             opt.zero_grad(set_to_none=True)
             opt_bias.zero_grad(set_to_none=True)
-            current_steps += 1
 
-            if epoch >= ema_epoch_start and current_steps % hyp['misc']['ema']['every_n_steps'] == 0:          
+            if epoch >= ema_epoch_start and (current_steps+1) % hyp['misc']['ema']['every_n_steps'] == 0:          
                 ## Initialize the ema from the network at this point in time if it does not already exist.... :D
                 if net_ema is None: # don't snapshot the network yet if so!
                     net_ema = NetworkEMA(net)
-                    continue
-                # We warm up our ema's decay/momentum value over training exponentially according to the hyp config dictionary (this lets us move fast, then average strongly at the end).
-                net_ema.update(net, decay=projected_ema_decay_val*(current_steps/total_train_steps)**hyp['misc']['ema']['decay_pow'])
+                else:
+                    # We warm up our ema's decay/momentum value over training exponentially according to the hyp config dictionary (this lets us move fast, then average strongly at the end).
+                    net_ema.update(net, decay=projected_ema_decay_val*(current_steps/total_train_steps)**hyp['misc']['ema']['decay_pow'])
 
+            current_steps += 1
             if current_steps == total_train_steps:
                 break
 
