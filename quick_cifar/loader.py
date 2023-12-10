@@ -47,6 +47,16 @@ def batch_cutout(inputs, size):
     cutout_masks = make_random_square_masks(inputs, size)
     return inputs.masked_fill(cutout_masks, 0)
 
+def batch_cutmix(inputs, labels, patch_size):
+    cutmix_indices = torch.randperm(len(inputs))
+    cutmix_mask = make_random_square_masks(inputs, patch_size)
+    cutmix_inputs = torch.where(cutmix_mask, inputs[cutmix_indices], inputs)
+    cutmix_labels = labels[cutmix_indices]
+    # Get the percentage of each target to mix for the labels by the % proportion of pixels in the mix
+    portion_mixed = float(patch_size**2)/(inputs.shape[-2]*inputs.shape[-1])
+    cutmix_targets = portion_mixed * F.one_hot(cutmix_labels) + (1 - portion_mixed) * F.one_hot(labels)
+    return cutmix_inputs, cutmix_targets
+
 class CifarLoader:
 
     def __init__(self, path, train=True, batch_size=500, aug=None, keep_last=False, shuffle=None, gpu=0):
@@ -67,7 +77,7 @@ class CifarLoader:
         
         self.aug = aug or {}
         for k in self.aug.keys():
-            assert k in ['flip', 'translate', 'cutout'], 'Unrecognized key: %s' % k
+            assert k in ['flip', 'translate', 'cutout', 'cutmix'], 'Unrecognized key: %s' % k
 
         self.batch_size = batch_size
         self.keep_last = keep_last
@@ -76,7 +86,7 @@ class CifarLoader:
         else:
             self.shuffle = shuffle
 
-    def augment(self, images):
+    def augment(self, images, labels):
         if self.aug.get('flip', False):
             images = batch_flip_lr(images)
         if self.aug.get('cutout', 0) > 0:
@@ -85,15 +95,17 @@ class CifarLoader:
             # Apply translation in minibatches in order to save memory
             images = torch.cat([batch_translate(image_batch, self.aug['translate'])
                                 for image_batch in images.split(5000)])
-        return images
+        if self.aug.get('cutmix', 0) > 0:
+            images, labels = batch_cutmix(images, labels, self.aug['cutmix'])
+        return images, labels
 
     def __len__(self):
         return ceil(len(self.images)/self.batch_size) if self.keep_last else len(self.images)//self.batch_size
 
     def __iter__(self):
-        images = self.augment(self.normalize(self.images))
+        images, labels = self.augment(self.normalize(self.images), self.labels)
         indices = (torch.randperm if self.shuffle else torch.arange)(len(images), device=images.device)
         for i in range(len(self)):
             idxs = indices[i*self.batch_size:(i+1)*self.batch_size]
-            yield (images[idxs].float(), self.labels[idxs])
+            yield (images[idxs].float(), labels[idxs])
 
