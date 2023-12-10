@@ -29,24 +29,23 @@ def make_random_square_masks(inputs, size):
 
     return final_mask
 
-def batch_flip_lr(batch_images, flip_chance=.5):
-    return torch.where(torch.rand_like(batch_images[:, 0, 0, 0]).view(-1, 1, 1, 1) < flip_chance,
-                       batch_images.flip(-1), batch_images)
+def batch_flip_lr(inputs, flip_chance=0.5):
+    flip_mask = (torch.rand(len(inputs)) < 0.5).view(-1, 1, 1, 1).to(inputs.device)
+    return torch.where(flip_mask, inputs.flip(-1), inputs)
 
 def batch_crop(inputs, crop_size):
-    crop_mask_batch = make_random_square_masks(inputs, crop_size)
-    cropped_batch = torch.masked_select(inputs, crop_mask_batch)
+    crop_mask = make_random_square_masks(inputs, crop_size)
+    cropped_batch = torch.masked_select(inputs, crop_mask)
     return cropped_batch.view(inputs.shape[0], inputs.shape[1], crop_size, crop_size)
 
 def batch_translate(inputs, translate):
-    width = inputs.shape[2]
-    inputs = F.pad(inputs, (translate,)*4, 'constant', value=0)
-    return batch_crop(inputs, width)
+    width = inputs.shape[-2]
+    padded_inputs = F.pad(inputs, (translate,)*4, 'constant', value=0)
+    return batch_crop(padded_inputs, width)
 
 def batch_cutout(inputs, size):
-    masks = make_random_square_masks(inputs, size)
-    cutout_batch = inputs.masked_fill(masks, 0)
-    return cutout_batch
+    cutout_masks = make_random_square_masks(inputs, size)
+    return inputs.masked_fill(cutout_masks, 0)
 
 class CifarLoader:
 
