@@ -53,16 +53,16 @@ class NetworkEMA(nn.Module):
 
     def update(self, current_net, decay):
         with torch.no_grad():
-            for ema_net_parameter, (parameter_name, incoming_net_parameter) in zip(self.net_ema.state_dict().values(), current_net.state_dict().items()): # potential bug: assumes that the network architectures don't change during training (!!!!)
+            for ema_net_parameter, (parameter_name, incoming_net_parameter) in zip(self.net_ema.state_dict().values(), current_net.state_dict().items()):
                 if incoming_net_parameter.dtype in (torch.half, torch.float):
-                    ema_net_parameter.mul_(decay).add_(incoming_net_parameter.detach().mul(1. - decay)) # update the ema values in place, similar to how optimizer momentum is coded
+                    ema_net_parameter.lerp_(incoming_net_parameter.detach(), 1 - decay) # linear interpolation
                     # And then we also copy the parameters back to the network, similarly to the Lookahead optimizer (but with a much more aggressive-at-the-end schedule)
-                    if not ('norm' in parameter_name and 'weight' in parameter_name) and not 'whiten' in parameter_name:
+                    #if not ('norm' in parameter_name and 'weight' in parameter_name) and not 'whiten' in parameter_name:
+                    if not 'whiten' in parameter_name:
                         incoming_net_parameter.copy_(ema_net_parameter.detach())
 
     def forward(self, inputs):
-        with torch.no_grad():
-            return self.net_ema(inputs)
+        return self.net_ema(inputs)
 
 def init_split_parameter_dictionaries(network):
     params_non_bias = {'params': [], 'lr': hyp['opt']['non_bias_lr'], 'momentum': .85, 'nesterov': True, 'weight_decay': hyp['opt']['non_bias_decay'], 'foreach': True}
@@ -173,7 +173,7 @@ def main():
 
 if __name__ == "__main__":
     acc_list = []
-    for run_num in range(1):
+    for run_num in range(10):
         acc_list.append(torch.tensor(main()))
     print("Mean and variance:", (torch.mean(torch.stack(acc_list)).item(), torch.std(torch.stack(acc_list)).item()))
 

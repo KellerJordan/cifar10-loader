@@ -60,7 +60,7 @@ def batch_cutmix(inputs, labels, patch_size):
 
 class CifarLoader:
 
-    def __init__(self, path, train=True, batch_size=500, aug=None, keep_last=False, shuffle=None, gpu=0):
+    def __init__(self, path, train=True, batch_size=500, aug=None, prepad=True, keep_last=False, shuffle=None, gpu=0):
         data_path = os.path.join(path, 'train.pt' if train else 'test.pt')
         if not os.path.exists(data_path):
             dset = torchvision.datasets.CIFAR10(path, download=True, train=train)
@@ -79,6 +79,11 @@ class CifarLoader:
         self.aug = aug or {}
         for k in self.aug.keys():
             assert k in ['flip', 'translate', 'cutout', 'cutmix'], 'Unrecognized key: %s' % k
+        self.prepad = prepad
+        if self.prepad: # prepad images to go a bit faster at the cost of some memory.
+            pad = self.aug.get('translate', 0)
+            norm_images = self.normalize(self.images)
+            self.padded_normalized_images = F.pad(norm_images, (pad,)*4, 'reflect')
 
         self.batch_size = batch_size
         self.keep_last = keep_last
@@ -100,11 +105,24 @@ class CifarLoader:
             images, labels = batch_cutmix(images, labels, self.aug['cutmix'])
         return images, labels
 
+    def augment_prepad(self, images, labels):
+        images = batch_crop(images, 32)
+        if self.aug.get('flip', False):
+            images = batch_flip_lr(images)
+        if self.aug.get('cutout', 0) > 0:
+            images = batch_cutout(images, self.aug['cutout'])
+        if self.aug.get('cutmix', 0) > 0:
+            images, labels = batch_cutmix(images, labels, self.aug['cutmix'])
+        return images, labels
+
     def __len__(self):
         return ceil(len(self.images)/self.batch_size) if self.keep_last else len(self.images)//self.batch_size
 
     def __iter__(self):
-        images, labels = self.augment(self.normalize(self.images), self.labels)
+        if self.prepad:
+            images, labels = self.augment_prepad(self.padded_normalized_images, self.labels)
+        else:
+            images, labels = self.augment(self.normalize(self.images), self.labels)
         indices = (torch.randperm if self.shuffle else torch.arange)(len(images), device=images.device)
         for i in range(len(self)):
             idxs = indices[i*self.batch_size:(i+1)*self.batch_size]
