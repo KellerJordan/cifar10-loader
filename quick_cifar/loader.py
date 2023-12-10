@@ -80,7 +80,7 @@ class CifarLoader:
         if self.aug.get('translate', 0) > 0:
             # apply translation in minibatches of 5000 in order to save memory
             images = torch.cat([batch_translate(image_batch, self.aug['translate'])
-                                for image_batch in images.chunk(5000)])
+                                for image_batch in images.split(5000)])
         return images
 
     def __len__(self):
