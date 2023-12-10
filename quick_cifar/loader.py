@@ -40,7 +40,8 @@ def batch_crop(inputs, crop_size):
 
 def batch_translate(inputs, translate):
     width = inputs.shape[-2]
-    padded_inputs = F.pad(inputs, (translate,)*4, 'constant', value=0)
+    padded_inputs = F.pad(inputs, (translate,)*4, 'reflect')
+    #padded_inputs = F.pad(inputs, (translate,)*4, 'constant', value=0)
     return batch_crop(padded_inputs, width)
 
 def batch_cutout(inputs, size):
@@ -107,5 +108,5 @@ class CifarLoader:
         indices = (torch.randperm if self.shuffle else torch.arange)(len(images), device=images.device)
         for i in range(len(self)):
             idxs = indices[i*self.batch_size:(i+1)*self.batch_size]
-            yield (images[idxs].float(), labels[idxs])
+            yield (images[idxs], labels[idxs])
 
