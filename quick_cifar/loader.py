@@ -30,7 +30,7 @@ def make_random_square_masks(inputs, size):
     return final_mask
 
 def batch_flip_lr(inputs):
-    flip_mask = (torch.rand(len(inputs)) < 0.5).view(-1, 1, 1, 1).to(inputs.device)
+    flip_mask = (torch.rand(len(inputs), device=inputs.device) < 0.5).view(-1, 1, 1, 1)
     return torch.where(flip_mask, inputs.flip(-1), inputs)
 
 def batch_crop(inputs, crop_size):
