@@ -29,7 +29,7 @@ def make_random_square_masks(inputs, size):
 
     return final_mask
 
-def batch_flip_lr(inputs, flip_chance=0.5):
+def batch_flip_lr(inputs):
     flip_mask = (torch.rand(len(inputs)) < 0.5).view(-1, 1, 1, 1).to(inputs.device)
     return torch.where(flip_mask, inputs.flip(-1), inputs)
 
