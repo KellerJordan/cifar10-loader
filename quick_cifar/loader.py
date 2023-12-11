@@ -49,7 +49,7 @@ def batch_cutout(inputs, size):
 
 class CifarLoader:
 
-    def __init__(self, path, train=True, batch_size=500, aug=None, keep_last=False, shuffle=None, gpu=0):
+    def __init__(self, path, train=True, batch_size=500, aug=None, drop_last=None, shuffle=None, gpu=0):
         data_path = os.path.join(path, 'train.pt' if train else 'test.pt')
         if not os.path.exists(data_path):
             dset = torchvision.datasets.CIFAR10(path, download=True, train=train)
@@ -70,11 +70,8 @@ class CifarLoader:
             assert k in ['flip', 'translate', 'cutout'], 'Unrecognized key: %s' % k
 
         self.batch_size = batch_size
-        self.keep_last = keep_last
-        if shuffle is None:
-            self.shuffle = train
-        else:
-            self.shuffle = shuffle
+        self.drop_last = train if drop_last is None else drop_last
+        self.shuffle = train if shuffle is None else shuffle
 
     def augment(self, images):
         if self.aug.get('flip', False):
@@ -88,7 +85,7 @@ class CifarLoader:
         return images
 
     def __len__(self):
-        return ceil(len(self.images)/self.batch_size) if self.keep_last else len(self.images)//self.batch_size
+        return len(self.images)//self.batch_size if self.drop_last else ceil(len(self.images)/self.batch_size)
 
     def __iter__(self):
         images = self.augment(self.normalize(self.images))
