@@ -11,7 +11,6 @@ CIFAR_STD = torch.tensor((0.2470, 0.2435, 0.2616))
 
 # https://github.com/tysam-code/hlb-CIFAR10/blob/main/main.py#L389
 def make_random_square_masks(inputs, size):
-    is_even = int(size % 2 == 0)
     n,c,h,w = inputs.shape
 
     # seed top-left corners of squares to cutout boxes from, in one dimension each
@@ -40,7 +39,8 @@ def batch_crop(inputs, crop_size):
 
 def batch_translate(inputs, translate):
     width = inputs.shape[-2]
-    padded_inputs = F.pad(inputs, (translate,)*4, 'constant', value=0)
+    # reflect padding tends to give better results than zero-padding
+    padded_inputs = F.pad(inputs, (translate,)*4, 'reflect')
     return batch_crop(padded_inputs, width)
 
 def batch_cutout(inputs, size):
@@ -92,5 +92,5 @@ class CifarLoader:
         indices = (torch.randperm if self.shuffle else torch.arange)(len(images), device=images.device)
         for i in range(len(self)):
             idxs = indices[i*self.batch_size:(i+1)*self.batch_size]
-            yield (images[idxs].float(), self.labels[idxs])
+            yield (images[idxs], self.labels[idxs])
 
